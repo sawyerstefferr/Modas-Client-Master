@@ -186,7 +186,46 @@ $(function () {
     });
   }
   function login(){
-
+    // reset any fields marked with errors
+    $('.form-control').removeClass('is-invalid');
+    // create an empty errors array
+    var errors = [];
+    $("#badLogin").html("");
+    // check for empty username
+    if ($('#username').val().length == 0){
+      errors.push($('#username'));
+    }
+    // check for empty password
+    if ($('#password').val().length == 0){
+      errors.push($('#password'));
+    }
+    // username and/or password empty, display errors
+    if (errors.length > 0){
+      showErrors(errors);
+    } else {
+      // verify username and password using the token api
+      $.ajax({
+        headers: { 'Content-Type': 'application/json' },
+        url: "https://localhost:5001/api/token",
+        type: 'post',
+        data: JSON.stringify({ "username": $('#username').val(), "password": $('#password').val() }),
+        success: function (data) {
+          // save token in a cookie
+          Cookies.set('token', data["token"], { expires: 7 });
+          // hide modal
+          $('#signInModal').modal('hide');
+          verifyToken();
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+          // log the error to the console
+          console.log("The following error occured: " + jqXHR.status, errorThrown);
+          errors.push($("#username"));
+          errors.push($("#password"));
+          $("#badLogin").html("Invalid username and/or password");
+          showErrors(errors);
+        }
+      });
+    }
   }
   // event listeners for first/next/prev/last buttons
   $('#next, #prev, #first, #last').on('click', function () {
@@ -208,7 +247,7 @@ $(function () {
     }
     // AJAX to update database
     $.ajax({
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "Authorization": 'Bearer ' + Cookies.get('token') },
       url: "https://localhost:5001/api/event/" + $(this).data('id'),
       type: 'patch',
       data: JSON.stringify([{ "op": "replace", "path": "Flagged", "value": checked }]),
@@ -257,41 +296,12 @@ $(function () {
   $('#submitButton').on('click', function(e){
     
     e.preventDefault();
-
-    // reset any fields marked with errors
-    $('.form-control').removeClass('is-invalid');
-    // create an empty errors array
-    var errors = [];
-    // check for empty username
-    if ($('#username').val().length == 0){
-      errors.push($('#username'));
-    }
-    // check for empty password
-    if ($('#password').val().length == 0){
-      errors.push($('#password'));
-    }
-    // username and/or password empty, display errors
-    if (errors.length > 0){
-      showErrors(errors);
-    } else {
-      // verify username and password using the token api
-      $.ajax({
-        headers: { 'Content-Type': 'application/json' },
-        url: "https://localhost:5001/api/token",
-        type: 'post',
-        data: JSON.stringify({ "username": $('#username').val(), "password": $('#password').val() }),
-        success: function (data) {
-          // save token in a cookie
-          Cookies.set('token', data["token"], { expires: 7 });
-          // hide modal
-          $('#signInModal').modal('hide');
-          verifyToken();
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-          // log the error to the console
-          console.log("The following error occured: " + jqXHR.status, errorThrown);
-        }
-      });
+    login();
+    
+  });
+  $(document).keypress(function(e) {
+    if(e.which == 13 && $('#signInModal').is(':visible')) {
+        login();
     }
   });
 });
